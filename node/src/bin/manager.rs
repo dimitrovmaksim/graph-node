@@ -555,14 +555,18 @@ pub enum ChainCommand {
 pub enum CallCacheCommand {
     /// Remove the call cache of the specified chain.
     ///
-    /// Either remove entries in the range `--from` and `--to`, or remove
-    /// the entire cache with `--remove-entire-cache`. Removing the entire
+    /// Either remove entries in the range `--from` and `--to`,
+    /// remove stale contracts which have not been accessed for a specified duration --ttl_days,
+    /// or removethe entire cache with `--remove-entire-cache`. Removing the entire
     /// cache can reduce indexing performance significantly and should
     /// generally be avoided.
     Remove {
         /// Remove the entire cache
         #[clap(long, conflicts_with_all = &["from", "to"])]
         remove_entire_cache: bool,
+        /// Remove stale contracts cache based on call_meta table
+        #[clap(long, conflicts_with_all = &["from", "to", "remove-entire-cache"])]
+        ttl_days: Option<i32>,
         /// Starting block number
         #[clap(long, short, conflicts_with = "remove-entire-cache", requires = "to")]
         from: Option<i32>,
@@ -1472,8 +1476,17 @@ async fn main() -> anyhow::Result<()> {
                             from,
                             to,
                             remove_entire_cache,
+                            ttl_days,
                         } => {
                             let chain_store = ctx.chain_store(&chain_name)?;
+                            if let Some(ttl_days) = ttl_days {
+                                return commands::chain::clear_stale_call_cache(
+                                    chain_store,
+                                    ttl_days,
+                                )
+                                .await;
+                            }
+
                             if !remove_entire_cache && from.is_none() && to.is_none() {
                                 bail!("you must specify either --from and --to or --remove-entire-cache");
                             }
