@@ -3044,6 +3044,10 @@ impl EthereumCallCache for ChainStore {
         req: &call::Request,
         block: BlockPtr,
     ) -> Result<Option<call::Response>, Error> {
+        if ENV_VARS.store_call_cache_disabled() {
+            return Ok(None);
+        }
+
         let id = contract_call_id(req, &block);
         let conn = &mut self.pool.get().await?;
         let return_value = conn
@@ -3134,6 +3138,10 @@ impl EthereumCallCache for ChainStore {
         block: BlockPtr,
         return_value: call::Retval,
     ) -> Result<(), Error> {
+        if ENV_VARS.store_call_cache_disabled() {
+            return Ok(());
+        }
+
         let return_value = match return_value {
             call::Retval::Value(return_value) if !return_value.is_empty() => return_value,
             _ => {
